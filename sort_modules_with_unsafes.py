@@ -3,51 +3,96 @@
 # https://www.twilio.com/blog/2017/02/an-easy-way-to-read-and-write-to-a-google-spreadsheet-in-python.html
 # https://developers.google.com/sheets/api/quickstart/python
 
-import sys;
-from datetime import datetime;
+import sys
+from datetime import datetime
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+   
+def open_spreadsheet(name):
+    # Find a workbook by name and open the first sheet
+    # Make sure you use the right name here.
+    sheet = client.open(name).sheet1
+    
+    # Extract and print all of the values
+    list_of_hashes = sheet.get_all_records()
+    return list_of_hashes
 
 def list_print(list):
     for item in list:
         print item
 
-def preprocess(input_lines):
-    # get the lines themselves
-    lines = list(map(lambda x: x.split(',')[-4:], input_lines))
+def setify_tags(item):
+    tag = item[_dtag]
+    item[_dtag] = set()
+    item[_dtag].add(tag)
+    return item
 
-    # add tags
-    for i in range(len(input_lines)):
-        line = input_lines[i].split(',')
-        lines[i].append(line[3])
-        lines[i].append(line[4])
+def transform_numeric(item):
+    item[_date] = datetime.strptime(item[_date], '%d.%m.%Y').date()
+    item[_sent] = int(item[_sent])
+    return item
 
+def cut(item):
+    for key in [_tag,_desc,_comment,_day,_vo,_errid]:
+        del item[key]
+    return item
+
+def preprocess(lines):
     # remove false_unsafes and errors
-    lines = filter(lambda x: 'true_unsafe' in x[4], lines)
+    lines = filter(lambda x: 'true_unsafe' in x[_tag], lines)
+
+    lines = map(cut, lines)
+
+    lines = filter(lambda x: x is not None, lines)
 
     # gather true_unsafe tags for each file
+    lines = map(setify_tags, lines)
 
-    # remove lines with empty info
-    lines = filter(lambda x: not [''] * 3 == x[:-1], lines)
+    i = 0
+    j = 1
+    while i < len(lines) - 1 and j < len(lines):
+        if not lines[i][_module] == '':
+            if len(lines[j]) > 0 and lines[j][_module] == '':
+                lines[i][_dtag] |= lines[j][_dtag]
+            else:
+                i = j
+            j += 1
 
-    # remove lines without true_unsafe modules
-    # (they have a date of last modification)
-    lines = filter(lambda x: not x[2] == '', lines)
+    # remove lines without info on true_unsafe modules
+    # (they don't have a date of last modification)
+    lines = filter(lambda x: not x[_date] == '', lines)
 
     # transform string date into python date
-    lines = list( map(lambda x:
-                      [x[0], datetime.strptime(x[2], '%d.%m.%Y').date(),
-                       int(x[3][0]), x[5]],
-                      lines[1:]))
+    lines = map(transform_numeric, lines)
+    
+    # filter all of the modules which maintainers had been notified about the problem
+    lines = filter(lambda x: x[_sent] == 0, lines)
 
     # sort data by last modified date
-    lines.sort(key=lambda x: x[1], reverse=True)
+    lines.sort(key=lambda x: x[_date], reverse=True)
     return lines
 
 def filter_by_tag(input_lines, tag):
-    lines = filter(lambda x: tag in x[3], input_lines)
+    lines = filter(lambda x: tag in x[_dtag], input_lines)
     return lines
 
-file = open(sys.argv[1])
-lines = file.read().split('\n')
+# use creds to create a client to interact with the Google Drive API
+scope = ['https://spreadsheets.google.com/feeds']
+creds = ServiceAccountCredentials.from_json_keyfile_name('client_secret.json', scope)
+client = gspread.authorize(creds)
+
+lines = open_spreadsheet("sync:race tagged")
+
+_tag = 'Tag'
+_dtag = 'DetailedTag'
+_sent = 'Message sent'
+_date = 'Last change to source code'
+_comment = 'Launch information'
+_vo = 'Verification object'
+_errid = 'Error trace identifier'
+_desc = 'Description'
+_module = 'Module'
+_day = 'Day'
 
 lines = preprocess(lines)
 
