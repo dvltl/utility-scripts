@@ -4,15 +4,15 @@
 # https://developers.google.com/sheets/api/quickstart/python
 
 import sys
-from datetime import datetime
 import gspread
+from datetime import datetime
 from oauth2client.service_account import ServiceAccountCredentials
-   
+
 def open_spreadsheet(name):
     # Find a workbook by name and open the first sheet
     # Make sure you use the right name here.
     sheet = client.open(name).sheet1
-    
+
     # Extract and print all of the values
     list_of_hashes = sheet.get_all_records()
     return list_of_hashes
@@ -42,8 +42,6 @@ def preprocess(lines):
     lines = filter(lambda x: 'true_unsafe' in x[_tag], lines)
 
     lines = map(cut, lines)
-
-    lines = filter(lambda x: x is not None, lines)
 
     # gather true_unsafe tags for each file
     lines = map(setify_tags, lines)
@@ -76,6 +74,8 @@ def filter_by_tag(input_lines, tag):
     lines = filter(lambda x: tag in x[_dtag], input_lines)
     return lines
 
+####################################################################
+
 # use creds to create a client to interact with the Google Drive API
 scope = ['https://spreadsheets.google.com/feeds']
 creds = ServiceAccountCredentials.from_json_keyfile_name('client_secret.json', scope)
@@ -96,8 +96,9 @@ _day = 'Day'
 
 lines = preprocess(lines)
 
-if len(sys.argv) > 2:
-    lines = filter_by_tag(lines, sys.argv[2])
+if len(sys.argv) > 1:
+    lines = filter_by_tag(lines, sys.argv[1])
 
 print
 list_print(lines)
+print
