@@ -24,8 +24,6 @@ def preprocess(input_lines):
     lines = filter(lambda x: 'true_unsafe' in x[4], lines)
 
     # gather true_unsafe tags for each file
-    print 'Only true_unsafe'
-    list_print(lines)
 
     # remove lines with empty info
     lines = filter(lambda x: not [''] * 3 == x[:-1], lines)
@@ -37,7 +35,7 @@ def preprocess(input_lines):
     # transform string date into python date
     lines = list( map(lambda x:
                       [x[0], datetime.strptime(x[2], '%d.%m.%Y').date(),
-                       int(x[3][0]), x[4]],
+                       int(x[3][0]), x[5]],
                       lines[1:]))
 
     # sort data by last modified date
