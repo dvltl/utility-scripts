@@ -17,9 +17,14 @@ def open_spreadsheet(name):
     list_of_hashes = sheet.get_all_records()
     return list_of_hashes
 
-def list_print(list):
+def pretty_print(list):
+    step = '\n\t\t'
     for item in list:
-        print item
+        s = item[_module] + '\n'
+        s += '\t' + _date + step + item[_date].strftime('%d.%m.%Y') + '\n'
+        s += '\t' + _dtag + step + ', '.join(item[_dtag]) + '\n'
+        s += '\t' + _sent + step + str(item[_sent]) + '\n'
+        print(s)
 
 def setify_tags(item):
     tag = item[_dtag]
@@ -44,14 +49,15 @@ def preprocess(lines):
     lines = map(cut, lines)
 
     # gather true_unsafe tags for each file
-    lines = map(setify_tags, lines)
+    lines = list(map(setify_tags, lines))
 
     i = 0
     j = 1
     while i < len(lines) - 1 and j < len(lines):
         if not lines[i][_module] == '':
             if len(lines[j]) > 0 and lines[j][_module] == '':
-                lines[i][_dtag] |= lines[j][_dtag]
+                if not '' in lines[j][_dtag]:
+                    lines[i][_dtag] |= lines[j][_dtag]
             else:
                 i = j
             j += 1
@@ -61,17 +67,17 @@ def preprocess(lines):
     lines = filter(lambda x: not x[_date] == '', lines)
 
     # transform string date into python date
-    lines = map(transform_numeric, lines)
-    
+    lines = list(map(transform_numeric, lines))
+
     # filter all of the modules which maintainers had been notified about the problem
-    lines = filter(lambda x: x[_sent] == 0, lines)
+    lines = list(filter(lambda x: x[_sent] == 0, lines))
 
     # sort data by last modified date
     lines.sort(key=lambda x: x[_date], reverse=True)
     return lines
 
 def filter_by_tag(input_lines, tag):
-    lines = filter(lambda x: tag in x[_dtag], input_lines)
+    lines = list(filter(lambda x: tag in x[_dtag], input_lines))
     return lines
 
 ####################################################################
@@ -100,5 +106,5 @@ if len(sys.argv) > 1:
     lines = filter_by_tag(lines, sys.argv[1])
 
 print
-list_print(lines)
+pretty_print(lines)
 print
