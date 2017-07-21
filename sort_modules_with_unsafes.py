@@ -18,6 +18,7 @@ def open_spreadsheet(name):
     return list_of_hashes
 
 def pretty_print(list):
+    print('Number of modules with true_unsafes: ' + str(len(list)) +'\n')
     step = '\n\t\t'
     for item in list:
         s = item[_module] + '\n'
@@ -27,9 +28,9 @@ def pretty_print(list):
         print(s)
 
 def setify_tags(item):
-    tag = item[_dtag]
+    tag = item[_dtag].split('; ')
     item[_dtag] = set()
-    item[_dtag].add(tag)
+    item[_dtag] |= set(tag)
     return item
 
 def transform_numeric(item):
@@ -105,6 +106,4 @@ lines = preprocess(lines)
 if len(sys.argv) > 1:
     lines = filter_by_tag(lines, sys.argv[1])
 
-print
 pretty_print(lines)
-print
