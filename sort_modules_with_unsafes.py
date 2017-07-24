@@ -24,7 +24,7 @@ def pretty_print(list):
         s += '\t' + _date + step + item[_date].strftime('%d.%m.%Y') + '\n'
         if item[_dtag][_true]:
             s += '\t' + _true + step + ', '.join(item[_dtag][_true]) + '\n'
-        if item[_dtag][_false]:
+        if item[_dtag][_false] and show_false:
             s += '\t' + _false + step + ', '.join(item[_dtag][_false]) + '\n'
         s += '\t' + _sent + step + str(item[_sent]) + '\n'
         print(s)
@@ -42,10 +42,11 @@ def print_stats(list):
             if tag in item[_dtag][_true]:
                 num += 1
                 prefix = _true
-            elif tag in item[_dtag][_false]:
+            elif tag in item[_dtag][_false] and show_false:
                 num += 1
                 prefix = _false
-        print('Number of modules with tag <' + prefix + ':' + tag + '>: ' + str(num))
+        if num > 0:
+            print('Number of modules with tag <' + prefix + ':' + tag + '>: ' + str(num))
 
 def setify_tags(item):
     tag = item[_dtag].split('; ')
@@ -71,7 +72,8 @@ def gather_tags(lines):
         if not lines[i][_module] == '':
             if len(lines[j]) > 0 and lines[j][_module] == '':
                 lines[i][_dtag][_true] |= lines[j][_dtag][_true]
-                lines[i][_dtag][_false] |= lines[j][_dtag][_false]
+                if show_false:
+                    lines[i][_dtag][_false] |= lines[j][_dtag][_false]
             else:
                 i = j
             j += 1
@@ -131,11 +133,14 @@ _day = 'Day'
 _true = 'true_unsafe'
 _false = 'false_unsafe'
 
+show_false = not '--no-false' in sys.argv
+
 lines = preprocess(lines)
 
 if '--tag' in sys.argv:
     lines = filter_by_tag(lines, sys.argv[sys.argv.index('--tag') + 1])
 
 pretty_print(lines)
+
 if '--print-stats' in sys.argv:
     print_stats(lines)
