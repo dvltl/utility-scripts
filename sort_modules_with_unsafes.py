@@ -22,27 +22,36 @@ def pretty_print(list):
     for item in list:
         s = item[_module] + '\n'
         s += '\t' + _date + step + item[_date].strftime('%d.%m.%Y') + '\n'
-        s += '\t' + _dtag + step + ', '.join(item[_dtag]) + '\n'
+        if item[_dtag][_true]:
+            s += '\t' + _true + step + ', '.join(item[_dtag][_true]) + '\n'
+        if item[_dtag][_false]:
+            s += '\t' + _false + step + ', '.join(item[_dtag][_false]) + '\n'
         s += '\t' + _sent + step + str(item[_sent]) + '\n'
         print(s)
 
 def print_stats(list):
-    print('Number of modules with true_unsafes: ' + str(len(list)) + '\n')
+    print('Number of modules found: ' + str(len(list)) + '\n')
     all_tags = set()
     for item in list:
-        all_tags |= item[_dtag]
+        all_tags |= item[_dtag][_true]
+        all_tags |= item[_dtag][_false]
 
     for tag in all_tags:
         num = 0
         for item in list:
-            if tag in item[_dtag]:
+            if tag in item[_dtag][_true]:
                 num += 1
-        print('Number of modules with tag <' + tag + '>:' + str(num))
+                prefix = _true
+            elif tag in item[_dtag][_false]:
+                num += 1
+                prefix = _false
+        print('Number of modules with tag <' + prefix + ':' + tag + '>: ' + str(num))
 
 def setify_tags(item):
     tag = item[_dtag].split('; ')
-    item[_dtag] = set()
-    item[_dtag] |= set(tag)
+    item[_dtag] = {_true: set(), _false: set()}
+    if item[_tag] == _true or item[_tag] == _false:
+        item[_dtag][item[_tag]] |= set(tag)
     return item
 
 def transform_numeric(item):
@@ -51,29 +60,36 @@ def transform_numeric(item):
     return item
 
 def cut(item):
-    for key in [_tag,_desc,_comment,_day,_vo,_errid]:
+    for key in [_desc,_comment,_day,_vo,_errid]:
         del item[key]
     return item
 
+def gather_tags(lines):
+    i = 0
+    j = 1
+    while i < len(lines) - 1 and j < len(lines):
+        if not lines[i][_module] == '':
+            if len(lines[j]) > 0 and lines[j][_module] == '':
+                lines[i][_dtag][_true] |= lines[j][_dtag][_true]
+                lines[i][_dtag][_false] |= lines[j][_dtag][_false]
+            else:
+                i = j
+            j += 1
+    return lines
+
+
+
 def preprocess(lines):
-    # remove false_unsafes and errors
-    lines = filter(lambda x: 'true_unsafe' in x[_tag], lines)
 
     lines = map(cut, lines)
 
     # gather true_unsafe tags for each file
     lines = list(map(setify_tags, lines))
 
-    i = 0
-    j = 1
-    while i < len(lines) - 1 and j < len(lines):
-        if not lines[i][_module] == '':
-            if len(lines[j]) > 0 and lines[j][_module] == '':
-                if not '' in lines[j][_dtag]:
-                    lines[i][_dtag] |= lines[j][_dtag]
-            else:
-                i = j
-            j += 1
+    # remove false_unsafes and errors
+#    lines = filter(lambda x: 'true_unsafe' in x[_tag], lines)
+
+    lines = gather_tags(lines)
 
     # remove lines without info on true_unsafe modules
     # (they don't have a date of last modification)
@@ -90,7 +106,7 @@ def preprocess(lines):
     return lines
 
 def filter_by_tag(input_lines, tag):
-    lines = list(filter(lambda x: tag in x[_dtag], input_lines))
+    lines = list(filter(lambda x: tag in x[_dtag][_true] | x[_dtag][_false], input_lines))
     return lines
 
 ####################################################################
@@ -112,11 +128,14 @@ _errid = 'Error trace identifier'
 _desc = 'Description'
 _module = 'Module'
 _day = 'Day'
+_true = 'true_unsafe'
+_false = 'false_unsafe'
 
 lines = preprocess(lines)
 
-if len(sys.argv) > 1:
-    lines = filter_by_tag(lines, sys.argv[1])
+if '--tag' in sys.argv:
+    lines = filter_by_tag(lines, sys.argv[sys.argv.index('--tag') + 1])
 
 pretty_print(lines)
-print_stats(lines)
+if '--print-stats' in sys.argv:
+    print_stats(lines)
