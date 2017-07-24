@@ -27,10 +27,10 @@ def pretty_print(list):
         if item[_dtag][_false]:
             s += '\t' + _false + step + ', '.join(item[_dtag][_false]) + '\n'
         s += '\t' + _sent + step + str(item[_sent]) + '\n'
-        print(s)
+        print s
 
 def print_stats(list):
-    print('Number of modules found: ' + str(len(list)) + '\n')
+    print 'Number of modules found: ' + str(len(list)) + '\n'
     all_tags = set()
     for item in list:
         all_tags |= item[_dtag][_true]
@@ -45,7 +45,7 @@ def print_stats(list):
             elif tag in item[_dtag][_false]:
                 num += 1
                 prefix = _false
-        print('Number of modules with tag <' + prefix + ':' + tag + '>: ' + str(num))
+        print 'Number of modules with tag <' + prefix + ':' + tag + '>: ' + str(num)
 
 def setify_tags(item):
     tag = item[_dtag].split('; ')
