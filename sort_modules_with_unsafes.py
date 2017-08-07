@@ -21,12 +21,16 @@ def pretty_print(list):
     step = '\n\t\t'
     for item in list:
         s = item[_module] + '\n'
-        s += '\t' + _date + step + item[_date].strftime('%d.%m.%Y') + '\n'
-        if item[_dtag][_true]:
-            s += '\t' + _true + step + ', '.join(item[_dtag][_true]) + '\n'
-        if item[_dtag][_false] and show_false:
-            s += '\t' + _false + step + ', '.join(item[_dtag][_false]) + '\n'
-        s += '\t' + _sent + step + str(item[_sent]) + '\n'
+        if just_urls:
+            s += '\t' + _lkml + step + item[_lkml] + '\n'
+            s += '\t' + _patch + step + item[_patch] + '\n'
+        else:
+            s += '\t' + _date + step + item[_date].strftime('%d.%m.%Y') + '\n'
+            if item[_dtag][_true]:
+                s += '\t' + _true + step + ', '.join(item[_dtag][_true]) + '\n'
+            if item[_dtag][_false] and show_false:
+                s += '\t' + _false + step + ', '.join(item[_dtag][_false]) + '\n'
+            s += '\t' + _sent + step + str(item[_sent]) + '\n'
         print(s)
 
 def print_stats(list):
@@ -60,7 +64,7 @@ def transform_numeric(item):
     item[_sent] = int(item[_sent])
     return item
 
-def cut(item):
+def cut_info(item):
     for key in [_desc,_comment,_day,_vo,_errid]:
         del item[key]
     return item
@@ -79,17 +83,22 @@ def gather_tags(lines):
             j += 1
     return lines
 
+def extract_url(item):
+    return {_module: item[_module], _lkml: item[_lkml], _patch: item[_patch]}
 
+def collect_urls(lines):
+    result = list(map(extract_url, lines))
+    return list(filter(lambda x: not x[_lkml] == '', result))
 
 def preprocess(lines):
 
-    lines = map(cut, lines)
+    lines = map(cut_info, lines)
 
     # gather true_unsafe tags for each file
     lines = list(map(setify_tags, lines))
 
-    # remove false_unsafes and errors
-#    lines = filter(lambda x: 'true_unsafe' in x[_tag], lines)
+    # remove errors
+    lines = filter(lambda x: not _error in x[_tag], lines)
 
     lines = gather_tags(lines)
 
@@ -132,13 +141,19 @@ _module = 'Module'
 _day = 'Day'
 _true = 'true_unsafe'
 _false = 'false_unsafe'
+_error = 'error'
+_lkml = 'LKML'
+_patch = 'Patch'
 
+just_urls = '--urls' in sys.argv
 show_false = not '--no-false' in sys.argv
 
-lines = preprocess(lines)
-
-if '--tag' in sys.argv:
-    lines = filter_by_tag(lines, sys.argv[sys.argv.index('--tag') + 1])
+if just_urls:
+    lines = collect_urls(lines)
+else:
+    lines = preprocess(lines)
+    if '--tag' in sys.argv:
+        lines = filter_by_tag(lines, sys.argv[sys.argv.index('--tag') + 1])
 
 pretty_print(lines)
 
