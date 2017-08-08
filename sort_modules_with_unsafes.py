@@ -21,36 +21,47 @@ def pretty_print(list):
     step = '\n\t\t'
     for item in list:
         s = item[_module] + '\n'
-        if just_urls:
-            s += '\t' + _lkml + step + item[_lkml] + '\n'
-            s += '\t' + _patch + step + item[_patch] + '\n'
-        else:
+        if not just_urls:
             s += '\t' + _date + step + item[_date].strftime('%d.%m.%Y') + '\n'
             if item[_dtag][_true]:
                 s += '\t' + _true + step + ', '.join(item[_dtag][_true]) + '\n'
             if item[_dtag][_false] and show_false:
                 s += '\t' + _false + step + ', '.join(item[_dtag][_false]) + '\n'
             s += '\t' + _sent + step + str(item[_sent]) + '\n'
+        if just_urls or item[_dtag][_true]:
+            if item[_lkml]:
+                s += '\t' + _lkml + step + item[_lkml] + '\n'
+            if item[_patch]:
+                s += '\t' + _patch + step + item[_patch] + '\n'
+            if item[_appd] == '':
+                if item[_patch] == '':
+                    to_add = 'Nothing to apply'
+                else:
+                    to_add = 'Not yet'
+            else:
+                to_add = item[_appd]
+            s += '\t' + _appd + step + to_add + '\n'
         print(s)
 
 def print_stats(list):
     print('Number of modules found: ' + str(len(list)) + '\n')
-    all_tags = set()
-    for item in list:
-        all_tags |= item[_dtag][_true]
-        all_tags |= item[_dtag][_false]
-
-    for tag in all_tags:
-        num = 0
+    if not just_urls:
+        all_tags = set()
         for item in list:
-            if tag in item[_dtag][_true]:
-                num += 1
-                prefix = _true
-            elif tag in item[_dtag][_false] and show_false:
-                num += 1
-                prefix = _false
-        if num > 0:
-            print('Number of modules with tag <' + prefix + ':' + tag + '>: ' + str(num))
+            all_tags |= item[_dtag][_true]
+            all_tags |= item[_dtag][_false]
+
+        for tag in all_tags:
+            num = 0
+            for item in list:
+                if tag in item[_dtag][_true]:
+                    num += 1
+                    prefix = _true
+                elif tag in item[_dtag][_false] and show_false:
+                    num += 1
+                    prefix = _false
+            if num > 0:
+                print('Number of modules with tag <' + prefix + ':' + tag + '>: ' + str(num))
 
 def setify_tags(item):
     tag = item[_dtag].split('; ')
@@ -61,7 +72,13 @@ def setify_tags(item):
 
 def transform_numeric(item):
     item[_date] = datetime.strptime(item[_date], '%d.%m.%Y').date()
-    item[_sent] = int(item[_sent])
+    i = int(item[_sent])
+    if i == 0:
+        item[_sent] = 'No'
+    elif i == 1:
+        item[_sent] = 'Yes'
+    else:
+        item[_sent] = 'N/A'
     return item
 
 def cut_info(item):
@@ -84,7 +101,8 @@ def gather_tags(lines):
     return lines
 
 def extract_url(item):
-    return {_module: item[_module], _lkml: item[_lkml], _patch: item[_patch]}
+    return {_module: item[_module], _lkml: item[_lkml],
+            _patch: item[_patch], _appd: item[_appd]}
 
 def collect_urls(lines):
     result = list(map(extract_url, lines))
@@ -98,7 +116,7 @@ def preprocess(lines):
     lines = list(map(setify_tags, lines))
 
     # remove errors
-    lines = filter(lambda x: not _error in x[_tag], lines)
+    lines = list(filter(lambda x: not _error in x[_tag], lines))
 
     lines = gather_tags(lines)
 
@@ -110,7 +128,7 @@ def preprocess(lines):
     lines = list(map(transform_numeric, lines))
 
     # filter all of the modules which maintainers had been notified about the problem
-    lines = list(filter(lambda x: x[_sent] == 0, lines))
+    # lines = list(filter(lambda x: x[_sent] == 0, lines))
 
     # sort data by last modified date
     lines.sort(key=lambda x: x[_date], reverse=True)
@@ -144,8 +162,9 @@ _false = 'false_unsafe'
 _error = 'error'
 _lkml = 'LKML'
 _patch = 'Patch'
+_appd = 'Applied'
 
-just_urls = '--urls' in sys.argv
+just_urls = '--just-urls' in sys.argv
 show_false = not '--no-false' in sys.argv
 
 if just_urls:
